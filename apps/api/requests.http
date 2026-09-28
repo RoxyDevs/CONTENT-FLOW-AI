@@ -1,0 +1,118 @@
+### Auth
+@baseUrl = http://localhost:3000
+@jwt = {{authLogin.response.body.tokens.accessToken}}
+
+### Register
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "Roxana",
+  "email": "roxana@example.com",
+  "password": "secret123"
+}
+
+### Login
+# @name authLogin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "roxana@example.com",
+  "password": "secret123"
+}
+
+### Me
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{jwt}}
+
+### Workspaces
+GET {{baseUrl}}/workspaces
+Authorization: Bearer {{jwt}}
+
+### Social accounts
+GET {{baseUrl}}/social-accounts
+Authorization: Bearer {{jwt}}
+
+### Filter by platform
+GET {{baseUrl}}/social-accounts?platform=INSTAGRAM&status=CONNECTED
+Authorization: Bearer {{jwt}}
+
+### Connect manual account (dev placeholder)
+POST {{baseUrl}}/social-accounts/connect
+Authorization: Bearer {{jwt}}
+Content-Type: application/json
+
+{
+  "platform": "INSTAGRAM",
+  "externalAccountId": "instagram_dev_123",
+  "username": "roxana_creator",
+  "displayName": "Roxana Creator",
+  "profileImageUrl": "https://example.com/avatar.png",
+  "accessToken": "dev-access-token",
+  "refreshToken": "dev-refresh-token",
+  "scopes": ["basic", "public_content"],
+  "metadata": {
+    "provider": "manual"
+  }
+}
+
+### Sync account
+@accountId = <id-de-la-cuenta>
+POST {{baseUrl}}/social-accounts/{{accountId}}/sync
+Authorization: Bearer {{jwt}}
+Content-Type: application/json
+
+{}
+
+### Refresh token
+POST {{baseUrl}}/social-accounts/{{accountId}}/refresh-token
+Authorization: Bearer {{jwt}}
+
+### Delete
+DELETE {{baseUrl}}/social-accounts/{{accountId}}
+Authorization: Bearer {{jwt}}
+
+### OAuth start
+GET {{baseUrl}}/integrations/instagram/oauth/start?workspaceId=<workspace-id>
+Authorization: Bearer {{jwt}}
+
+### OAuth callback placeholder
+GET {{baseUrl}}/integrations/instagram/oauth/callback?code=dev-code&workspaceId=<workspace-id>
+Authorization: Bearer {{jwt}}
+
+### Posts
+@workspaceId = <workspace-id>
+@postId = <post-id>
+
+### Schedule a post
+POST {{baseUrl}}/workspaces/{{workspaceId}}/posts/{{postId}}/schedule
+Authorization: Bearer {{jwt}}
+Content-Type: application/json
+
+{
+  "scheduledAt": "2026-09-30T18:00:00.000Z",
+  "jobName": "publish-post"
+}
+
+### Publish now
+POST {{baseUrl}}/workspaces/{{workspaceId}}/posts/{{postId}}/publish-now
+Authorization: Bearer {{jwt}}
+Content-Type: application/json
+
+{
+  "jobName": "publish-post"
+}
+
+### Cancel scheduled publication
+POST {{baseUrl}}/workspaces/{{workspaceId}}/posts/{{postId}}/cancel-schedule
+Authorization: Bearer {{jwt}}
+Content-Type: application/json
+
+{
+  "reason": "User canceled the scheduled post"
+}
+
+### Publication job logs
+GET {{baseUrl}}/workspaces/{{workspaceId}}/posts/{{postId}}/publication-jobs
+Authorization: Bearer {{jwt}}

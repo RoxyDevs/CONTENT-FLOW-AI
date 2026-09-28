@@ -1,0 +1,245 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum WorkspaceRole {
+  owner
+  admin
+  member
+}
+
+enum SocialPlatform {
+  INSTAGRAM
+  FACEBOOK
+  TIKTOK
+  YOUTUBE
+  LINKEDIN
+  X
+}
+
+enum SocialAccountStatus {
+  PENDING
+  CONNECTED
+  EXPIRED
+  REVOKED
+  ERROR
+}
+
+enum PostStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  FAILED
+  CANCELED
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+}
+
+enum VariantPublicationStatus {
+  DRAFT
+  READY
+  SCHEDULED
+  PUBLISHED
+  FAILED
+  CANCELED
+}
+
+enum PublicationJobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  avatarUrl    String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships   WorkspaceMembership[]
+  refreshTokens RefreshToken[]
+  posts         Post[]
+
+  @@map("users")
+}
+
+model Workspace {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  brandTone   String?
+  language    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  memberships       WorkspaceMembership[]
+  socialAccounts    SocialAccount[]
+  posts             Post[]
+  mediaAssets       MediaAsset[]
+  publicationJobs   PublicationJobLog[]
+
+  @@map("workspaces")
+}
+
+model Post {
+  id          String      @id @default(cuid())
+  workspaceId String
+  createdById String
+  title       String?
+  baseCaption String?
+  status      PostStatus  @default(DRAFT)
+  scheduledAt DateTime?
+  publishedAt DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  workspace        Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy        User                 @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  variants         PostVariant[]
+  mediaAssets      MediaAsset[]
+  publicationLogs PublicationJobLog[]
+
+  @@index([workspaceId])
+  @@index([status])
+  @@map("posts")
+}
+
+model PostVariant {
+  id                String                  @id @default(cuid())
+  postId            String
+  platform          SocialPlatform
+  caption           String?
+  hashtags          Json?
+  cta               String?
+  platformMetadata  Json?
+  publicationStatus VariantPublicationStatus @default(DRAFT)
+  externalPostId    String?
+  publishedAt       DateTime?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, platform])
+  @@index([postId])
+  @@map("post_variants")
+}
+
+model MediaAsset {
+  id             String    @id @default(cuid())
+  workspaceId    String
+  postId         String?
+  type           MediaType
+  url            String
+  fileName       String?
+  mimeType       String?
+  sizeBytes      Int?
+  width          Int?
+  height         Int?
+  durationSeconds Int?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  post      Post?     @relation(fields: [postId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId])
+  @@index([postId])
+  @@map("media_assets")
+}
+
+model WorkspaceMembership {
+  id          String        @id @default(cuid())
+  userId      String
+  workspaceId String
+  role        WorkspaceRole @default(member)
+  createdAt   DateTime      @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+  @@map("workspace_memberships")
+}
+
+model SocialAccount {
+  id                    String               @id @default(cuid())
+  workspaceId           String
+  platform              SocialPlatform
+  externalAccountId     String
+  username              String?
+  displayName           String?
+  profileImageUrl       String?
+  accessTokenEncrypted  String?
+  refreshTokenEncrypted String?
+  tokenExpiresAt        DateTime?
+  scopes                Json?
+  status                SocialAccountStatus  @default(PENDING)
+  metadata              Json?
+  connectedAt           DateTime?
+  lastSyncedAt          DateTime?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([workspaceId, platform])
+  @@index([workspaceId, status])
+  @@unique([workspaceId, platform, externalAccountId])
+  @@map("social_accounts")
+}
+
+model PublicationJobLog {
+  id          String               @id @default(cuid())
+  workspaceId  String
+  postId      String
+  status      PublicationJobStatus @default(PENDING)
+  jobName     String
+  queueName   String              @default("publication")
+  scheduledAt DateTime?
+  runAt       DateTime?
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  attempts    Int                 @default(0)
+  payload     Json?
+  errorMessage String?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
+  @@index([postId])
+  @@map("publication_job_logs")
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
